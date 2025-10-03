@@ -1,0 +1,1 @@
+/usr/bin/c++  -arch arm64 -dynamiclib -Wl,-headerpad_max_install_names -o libcommand_executor.dylib -install_name @rpath/libcommand_executor.dylib CMakeFiles/command_executor.dir/command_executor.cpp.o

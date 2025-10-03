@@ -1,0 +1,99 @@
+.PHONY: all build clean run-api run-mcp test help cpp-executor python-api go-mcp python-venv python-deps
+
+# Directories
+BIN_DIR := ./bin
+LIB_DIR := ./lib
+CPP_DIR := ./executor
+PYTHON_DIR := ./api-server
+GO_DIR := ./cmd/mcp-server
+
+# Tools
+CMAKE := cmake
+PYTHON := python3.11
+GO := go
+VENV := $(PYTHON_DIR)/.venv
+PIP := $(VENV)/bin/pip
+PYTHON_VENV := $(VENV)/bin/python
+
+all: build
+
+# Build everything
+build: cpp-executor python-deps go-mcp
+	@echo "✅ Build complete!"
+
+# C++ Executor
+cpp-executor:
+	@echo " Building C++ command executor..."
+	@mkdir -p $(LIB_DIR)
+	@cd $(CPP_DIR) && \
+		mkdir -p build && \
+		cd build && \
+		$(CMAKE) -DCMAKE_INSTALL_PREFIX=../../$(LIB_DIR) .. && \
+		$(CMAKE) --build . --config Release && \
+		$(CMAKE) --install .
+	@echo "✅ C++ executor built"
+
+# Python virtual environment
+python-venv:
+	@echo " Creating Python virtual environment..."
+	@test -f $(PYTHON_VENV) || ($(PYTHON) -m venv $(VENV))
+	@echo "✅ Virtual environment ready at $(VENV)"
+
+# Python API Server dependencies
+python-deps: python-venv
+	@echo " Installing Python dependencies into venv..."
+	@$(PYTHON_VENV) -m pip install --upgrade pip
+	@$(PYTHON_VENV) -m pip install -r $(PYTHON_DIR)/requirements.txt
+	@echo "✅ Python dependencies installed in venv"
+
+# Go MCP Server
+go-mcp:
+	@echo " Building Go MCP server..."
+	@mkdir -p $(BIN_DIR)
+	@$(GO) build -o $(BIN_DIR)/mcp-server $(GO_DIR)
+	@echo "✅ Go MCP server built"
+
+# Run API Server (Python)
+run-api: cpp-executor python-deps
+	@echo " Starting Python API server..."
+	@cd $(PYTHON_DIR) && \
+		EXECUTOR_LIB_PATH=../$(LIB_DIR)/lib/libcommand_executor.dylib \
+		.venv/bin/python3.11 main.py --port 5000
+
+# Run MCP Server (Go)
+run-mcp: go-mcp
+	@echo " Starting Go MCP server..."
+	@$(BIN_DIR)/mcp-server --port 8000 --server "http://localhost:5000"
+
+# Clean
+clean:
+	@echo " Cleaning..."
+	@rm -rf $(BIN_DIR) $(LIB_DIR)
+	@rm -rf $(CPP_DIR)/build
+	@rm -rf $(PYTHON_DIR)/.venv
+	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	@find . -type f -name "*.pyc" -delete
+	@echo "✅ Clean complete"
+
+# Test
+test:
+	@echo " Running tests..."
+	@cd $(PYTHON_DIR) && $(PYTHON_VENV) -m pytest tests/ -v
+	@$(GO) test ./... -v
+
+# Help
+help:
+	@echo "mcpwn Multi-Language Build System"
+	@echo ""
+	@echo "Targets:"
+	@echo "  all          - Build everything (default)"
+	@echo "  build        - Build all components"
+	@echo "  cpp-executor - Build C++ command executor"
+	@echo "  python-venv  - Create Python virtual environment"
+	@echo "  python-deps  - Install Python dependencies in venv"
+	@echo "  go-mcp       - Build Go MCP server"
+	@echo "  run-api      - Run Python API server"
+	@echo "  run-mcp      - Run Go MCP server"
+	@echo "  clean        - Remove build artifacts"
+	@echo "  test         - Run tests"
+	@echo "  help         - Show this help"
