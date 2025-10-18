@@ -1,2 +1,0 @@
-/Users/danterolle/LM-32 Ingegneria Informatica/Secondo Anno/apl/mcpwn/lib/lib/libcommand_executor.dylib
-/Users/danterolle/LM-32 Ingegneria Informatica/Secondo Anno/apl/mcpwn/lib/include/command_executor.h
