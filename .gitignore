@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+
+# Go
+bin/
+*.exe
+*.out
+
+# CMake/build
+executor/build/
+CMakeFiles/
+CMakeCache.txt
+Makefile
+*.dylib
+
+# VSCode
+.vscode/
