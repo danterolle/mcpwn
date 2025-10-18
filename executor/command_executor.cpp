@@ -25,8 +25,13 @@ void CommandExecutor::set_max_output_size(size_t max_bytes) {
     max_output_size_ = max_bytes;
 }
 
-bool CommandExecutor::is_timeout_exceeded(
-    const std::chrono::steady_clock::time_point& start) {
+/**
+ * @brief Verifica se il tempo trascorso dall'istante di avvio ha superato il timeout massimo.
+ * @param start rappresenta l'istante di inizio da cui misurare il tempo trascorso.
+ * @return true se il tempo trascorso è maggiore o uguale a timeout_seconds_ (timeout superato).
+ * @return false se il tempo trascorso è inferiore a timeout_seconds_ (ancora entro i limiti).
+ */
+bool CommandExecutor::is_timeout_exceeded(const std::chrono::steady_clock::time_point& start) {
     auto now = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start);
     return elapsed.count() >= timeout_seconds_;
@@ -36,31 +41,14 @@ void CommandExecutor::kill_process(pid_t pid) {
     kill(pid, SIGKILL);
 }
 
-std::string CommandExecutor::read_stream(int fd, bool& truncated) {
-    std::string result;
-    result.reserve(4096);
-    
-    char buffer[4096];
-    ssize_t bytes_read;
-    
-    while ((bytes_read = read(fd, buffer, sizeof(buffer))) > 0) {
-        if (result.size() + bytes_read > max_output_size_) {
-            result.append(buffer, max_output_size_ - result.size());
-            truncated = true;
-            break;
-        }
-        result.append(buffer, bytes_read);
-    }
-    
-    return result;
-}
-
 CommandResult CommandExecutor::execute(const std::string& command) {
     CommandResult result;
     result.return_code = -1;
     result.success = false;
     result.timed_out = false;
     result.partial_results = false;
+    result.stdout_truncated = false;
+    result.stderr_truncated = false;
     
     auto start_time = std::chrono::steady_clock::now();
     
@@ -84,7 +72,6 @@ CommandResult CommandExecutor::execute(const std::string& command) {
     }
     
     if (pid == 0) {
-        // Child process
         close(stdout_pipe[0]);
         close(stderr_pipe[0]);
         
@@ -98,11 +85,9 @@ CommandResult CommandExecutor::execute(const std::string& command) {
         _exit(127);
     }
     
-    // Parent process
     close(stdout_pipe[1]);
     close(stderr_pipe[1]);
     
-    // Set non-blocking
     fcntl(stdout_pipe[0], F_SETFL, O_NONBLOCK);
     fcntl(stderr_pipe[0], F_SETFL, O_NONBLOCK);
     
@@ -111,7 +96,6 @@ CommandResult CommandExecutor::execute(const std::string& command) {
     bool stderr_truncated = false;
     
     while (process_running) {
-        // Check timeout
         if (is_timeout_exceeded(start_time)) {
             kill_process(pid);
             result.timed_out = true;
@@ -139,6 +123,10 @@ CommandResult CommandExecutor::execute(const std::string& command) {
                     if (result.stdout_output.size() + n <= max_output_size_) {
                         result.stdout_output.append(buffer, n);
                     } else {
+                        size_t remaining = max_output_size_ - result.stdout_output.size();
+                        if (remaining > 0) {
+                            result.stdout_output.append(buffer, remaining);
+                        }
                         stdout_truncated = true;
                     }
                 }
@@ -150,6 +138,10 @@ CommandResult CommandExecutor::execute(const std::string& command) {
                     if (result.stderr_output.size() + n <= max_output_size_) {
                         result.stderr_output.append(buffer, n);
                     } else {
+                        size_t remaining = max_output_size_ - result.stderr_output.size();
+                        if (remaining > 0) {
+                            result.stderr_output.append(buffer, remaining);
+                        }
                         stderr_truncated = true;
                     }
                 }
@@ -166,6 +158,9 @@ CommandResult CommandExecutor::execute(const std::string& command) {
             }
         }
     }
+
+    result.stdout_truncated = stdout_truncated;
+    result.stderr_truncated = stderr_truncated;
     
     close(stdout_pipe[0]);
     close(stderr_pipe[0]);
@@ -197,6 +192,8 @@ extern "C" {
         c_result->timed_out = cpp_result.timed_out ? 1 : 0;
         c_result->partial_results = cpp_result.partial_results ? 1 : 0;
         c_result->execution_time_ms = cpp_result.execution_time_ms;
+        c_result->stdout_truncated = cpp_result.stdout_truncated ? 1 : 0;
+        c_result->stderr_truncated = cpp_result.stderr_truncated ? 1 : 0;
         
         return c_result;
     }

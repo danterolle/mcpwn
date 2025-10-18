@@ -10,7 +10,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from handlers import router
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -20,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifecycle manager for FastAPI app"""
     logger.info("Starting API Server...")
     logger.info(f"Command executor library: {os.getenv('EXECUTOR_LIB_PATH', 'libcommand_executor.so')}")
     yield
@@ -28,7 +26,6 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
-    """Create and configure FastAPI application"""
     app = FastAPI(
         title="mcpwn API Server",
         description="Security tools execution API",
@@ -36,7 +33,6 @@ def create_app() -> FastAPI:
         lifespan=lifespan
     )
     
-    # CORS middleware
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -45,7 +41,6 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     
-    # Include routers
     app.include_router(router)
     
     return app
@@ -60,10 +55,8 @@ def main():
     
     args = parser.parse_args()
     
-    # Set environment variables for handlers
     os.environ['DEFAULT_TIMEOUT'] = str(args.timeout)
     
-    # Override from environment
     port = int(os.getenv('API_PORT', args.port))
     
     logger.info(f"Starting API Server on {args.host}:{port}")

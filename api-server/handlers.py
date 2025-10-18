@@ -26,6 +26,8 @@ try:
             ("timed_out", ctypes.c_int),
             ("partial_results", ctypes.c_int),
             ("execution_time_ms", ctypes.c_long),
+            ("stdout_truncated", ctypes.c_int),
+            ("stderr_truncated", ctypes.c_int),
         ]
     
     # Configure function signatures
@@ -42,7 +44,6 @@ except Exception as e:
     logger.warning("Falling back to Python subprocess execution")
 
 
-# Models
 class CommandResult(BaseModel):
     stdout: str
     stderr: str
@@ -51,6 +52,8 @@ class CommandResult(BaseModel):
     timed_out: bool
     partial_results: bool
     execution_time_ms: Optional[int] = None
+    stdout_truncated: bool = False
+    stderr_truncated: bool = False
 
 
 class GenericCommandRequest(BaseModel):
@@ -79,9 +82,7 @@ class HealthStatus(BaseModel):
     executor_backend: str
 
 
-# Helper function to execute commands via C++
 def execute_command_cpp(command: str, timeout: int = 180) -> CommandResult:
-    """Execute command using C++ executor"""
     if not EXECUTOR_AVAILABLE:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -111,7 +112,9 @@ def execute_command_cpp(command: str, timeout: int = 180) -> CommandResult:
             success=bool(c_result.success),
             timed_out=bool(c_result.timed_out),
             partial_results=bool(c_result.partial_results),
-            execution_time_ms=c_result.execution_time_ms
+            execution_time_ms=c_result.execution_time_ms,
+            stdout_truncated=bool(c_result.stdout_truncated),
+            stderr_truncated=bool(c_result.stderr_truncated),
         )
         
         return result
@@ -145,7 +148,9 @@ def execute_command_python(command: str, timeout: int = 180) -> CommandResult:
             success=proc.returncode == 0,
             timed_out=False,
             partial_results=False,
-            execution_time_ms=execution_time_ms
+            execution_time_ms=execution_time_ms,
+            stdout_truncated=False,
+            stderr_truncated=False,
         )
     except subprocess.TimeoutExpired as e:
         execution_time_ms = int((time.time() - start_time) * 1000)
@@ -156,12 +161,13 @@ def execute_command_python(command: str, timeout: int = 180) -> CommandResult:
             success=False,
             timed_out=True,
             partial_results=bool(e.stdout),
-            execution_time_ms=execution_time_ms
+            execution_time_ms=execution_time_ms,
+            stdout_truncated=False,
+            stderr_truncated=False,
         )
 
 
 def execute_command(command: str, timeout: int = 180) -> CommandResult:
-    """Execute command using best available backend"""
     if EXECUTOR_AVAILABLE:
         return execute_command_cpp(command, timeout)
     else:
@@ -171,7 +177,6 @@ def execute_command(command: str, timeout: int = 180) -> CommandResult:
 # API Endpoints
 @router.post("/api/command", response_model=CommandResult)
 async def generic_command(req: GenericCommandRequest):
-    """Execute generic shell command (USE WITH CAUTION)"""
     logger.warning(f"Generic command execution requested: {req.command[:50]}...")
     
     timeout = int(os.getenv('DEFAULT_TIMEOUT', 180))
@@ -182,8 +187,6 @@ async def generic_command(req: GenericCommandRequest):
 
 @router.post("/api/tools/nmap", response_model=CommandResult)
 async def run_nmap(req: NmapRequest):
-    """Execute nmap scan"""
-    # Validate nmap is available
     if not shutil.which('nmap'):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -201,7 +204,6 @@ async def run_nmap(req: NmapRequest):
 
 @router.get("/health", response_model=HealthStatus)
 async def health_check():
-    """Health check endpoint"""
     main_tools = ["nmap", "gobuster", "nikto"]
     tools_status = {}
     

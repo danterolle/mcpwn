@@ -15,6 +15,8 @@ struct CommandResult {
     bool timed_out;
     bool partial_results;
     long execution_time_ms;
+    bool stdout_truncated;
+    bool stderr_truncated;
 };
 
 class CommandExecutor {
@@ -35,7 +37,6 @@ private:
     
     bool is_timeout_exceeded(const std::chrono::steady_clock::time_point& start);
     void kill_process(pid_t pid);
-    std::string read_stream(int fd, bool& truncated);
 };
 
 } // namespace mcpwn
@@ -50,6 +51,8 @@ extern "C" {
         int timed_out;
         int partial_results;
         long execution_time_ms;
+        int stdout_truncated;
+        int stderr_truncated;
     } CCommandResult;
 
     CCommandResult* execute_command(const char* command, int timeout_seconds);
