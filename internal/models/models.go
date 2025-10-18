@@ -8,6 +8,8 @@ type CommandResult struct {
 	TimedOut        bool   `json:"timed_out"`
 	PartialResults  bool   `json:"partial_results"`
 	ExecutionTimeMs *int64 `json:"execution_time_ms,omitempty"` // Added for C++ executor
+	StdoutTruncated bool   `json:"stdout_truncated"`
+	StderrTruncated bool   `json:"stderr_truncated"`
 }
 
 type GenericCommandRequest struct {
