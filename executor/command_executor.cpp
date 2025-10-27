@@ -93,6 +93,29 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
     bool stderr_truncated = false;
 
     std::vector<char> buffer(4096);
+
+    auto process_pipe = [&](const int fd, std::string& output, bool& is_truncated) {
+        if (is_truncated) {
+            while (read(fd, buffer.data(), buffer.size()) > 0) {}
+            return;
+        }
+
+        const ssize_t n = read(fd, buffer.data(), buffer.size());
+        if (n <= 0) {
+            return;
+        }
+
+        if (output.size() + n <= max_output_size_) {
+            output.append(buffer.data(), n);
+        } else {
+            if (const size_t remaining_space = max_output_size_ - output.size(); remaining_space > 0) {
+                output.append(buffer.data(), remaining_space);
+            }
+            is_truncated = true;
+            while (read(fd, buffer.data(), buffer.size()) > 0) {}
+        }
+    };
+
     while (process_running) {
         if (is_timeout_exceeded(start_time)) {
             kill_process(pid);
@@ -113,29 +136,11 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
 
         if (const int select_result = ::select(max_fd, &read_fds, nullptr, nullptr, &tv); select_result > 0) {
             if (FD_ISSET(stdout_pipe_fds[0], &read_fds)) {
-                if (const ssize_t n = read(stdout_pipe_fds[0], buffer.data(), buffer.size()); n > 0) {
-                    if (result.stdout_output.size() + n <= max_output_size_) {
-                        result.stdout_output.append(buffer.data(), n);
-                    } else {
-                        if (const size_t remaining = max_output_size_ - result.stdout_output.size(); remaining > 0) {
-                            result.stdout_output.append(buffer.data(), remaining);
-                        }
-                        stdout_truncated = true;
-                    }
-                }
+                process_pipe(stdout_pipe_fds[0], result.stdout_output, stdout_truncated);
             }
             
             if (FD_ISSET(stderr_pipe_fds[0], &read_fds)) {
-                if (const ssize_t n = read(stderr_pipe_fds[0], buffer.data(), buffer.size()); n > 0) {
-                    if (result.stderr_output.size() + n <= max_output_size_) {
-                        result.stderr_output.append(buffer.data(), n);
-                    } else {
-                        if (const size_t remaining = max_output_size_ - result.stderr_output.size(); remaining > 0) {
-                            result.stderr_output.append(buffer.data(), remaining);
-                        }
-                        stderr_truncated = true;
-                    }
-                }
+                process_pipe(stderr_pipe_fds[0], result.stderr_output, stderr_truncated);
             }
         }
         
