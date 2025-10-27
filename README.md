@@ -1,5 +1,38 @@
 # Nome Progetto: MCPwn
 
+## 0. Come utilizzarlo:
+
+Usare il Makefile per gestire il progetto e le sue build.
+
+```
+make build        # Compila tutti i moduli
+make clean        # Pulisce i file di build
+```
+
+Una volta eseguita la build completa, avviare i moduli nell'ordine corretto:
+
+```
+make run-api
+```
+
+In un altro terminale, avviare il server API:
+
+```
+make run-mcp
+```
+
+Esempio di chiamata API per eseguire una scansione usando `nmap`:
+```
+curl -X POST http://localhost:8000/tools/nmap \
+  -H "Content-Type: application/json" \
+  -d '{
+    "target": "scanme.nmap.org",
+    "ports": "80,443",
+    "scan_type": "-sV",
+    "additional_args": "-T4"
+  }'
+```
+
 ## 1. Composizione del Gruppo:
 
 Camonita Dario
