@@ -153,6 +153,15 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
         }
     }
 
+    if (process_running) {
+        // Obbliga il processo padre a fermarsi e ad attendere
+        // che il processo figlio sia completamente terminato e rimosso dal sistema.
+        ::waitpid(pid, nullptr, 0);
+    }
+
+    process_pipe(stdout_pipe_fds[0], result.stdout_output, stdout_truncated);
+    process_pipe(stderr_pipe_fds[0], result.stderr_output, stderr_truncated);
+
     result.stdout_truncated = stdout_truncated;
     result.stderr_truncated = stderr_truncated;
     
