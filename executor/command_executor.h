@@ -24,7 +24,7 @@ public:
     explicit CommandExecutor(int timeout_seconds = 180);
     ~CommandExecutor();
 
-    CommandResult execute(const std::string& command) const;
+    [[nodiscard]] CommandResult execute(const std::string& command) const;
     
     void set_timeout(int timeout_seconds);
     void set_max_output_size(size_t max_bytes);
@@ -32,7 +32,9 @@ public:
 private:
     int timeout_seconds_;
     size_t max_output_size_;
-    
+
+    /*[[nodiscard]] serve a dire al compilatore che il valore di ritorno di una funzione non deve essere ignorato,
+     * in questi casi può essere utile mantenerlo per evitare eventuali bug. */
     [[nodiscard]] bool is_timeout_exceeded(const std::chrono::steady_clock::time_point& start) const;
 
     static void kill_process(pid_t pid);

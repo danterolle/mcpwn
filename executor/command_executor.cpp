@@ -102,8 +102,8 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
         FD_ZERO(&read_fds);
         FD_SET(stdout_pipe[0], &read_fds);
         FD_SET(stderr_pipe[0], &read_fds);
-        
-        struct timeval tv{};
+
+        timeval tv{};
         tv.tv_sec = 0;
         tv.tv_usec = 100000; // 100ms
         
