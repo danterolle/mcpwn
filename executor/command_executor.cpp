@@ -91,7 +91,8 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
     bool process_running = true;
     bool stdout_truncated = false;
     bool stderr_truncated = false;
-    
+
+    std::vector<char> buffer(4096);
     while (process_running) {
         if (is_timeout_exceeded(start_time)) {
             kill_process(pid);
@@ -111,8 +112,6 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
         const int max_fd = std::max(stdout_pipe_fds[0], stderr_pipe_fds[0]) + 1;
 
         if (const int select_result = ::select(max_fd, &read_fds, nullptr, nullptr, &tv); select_result > 0) {
-            std::vector<char> buffer(4096);
-
             if (FD_ISSET(stdout_pipe_fds[0], &read_fds)) {
                 if (const ssize_t n = read(stdout_pipe_fds[0], buffer.data(), buffer.size()); n > 0) {
                     if (result.stdout_output.size() + n <= max_output_size_) {
