@@ -44,7 +44,7 @@ private:
 
 // C API per FFI (Foreign Function Interface)
 extern "C" {
-    typedef struct {
+    using CCommandResult = struct {
         char* stdout_output;
         char* stderr_output;
         int return_code;
@@ -54,7 +54,7 @@ extern "C" {
         long execution_time_ms;
         int stdout_truncated;
         int stderr_truncated;
-    } CCommandResult;
+    };
 
     CCommandResult* execute_command(const char* command, int timeout_seconds);
     void free_command_result(CCommandResult* result);
