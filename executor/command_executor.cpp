@@ -2,10 +2,8 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/select.h>
-#include <signal.h>
+#include <csignal>
 #include <fcntl.h>
-#include <cstring>
-#include <memory>
 #include <iostream>
 
 namespace mcpwn {
@@ -15,7 +13,7 @@ CommandExecutor::CommandExecutor(int timeout_seconds)
     , max_output_size_(10 * 1024 * 1024) // 10MB default
 {}
 
-CommandExecutor::~CommandExecutor() {}
+CommandExecutor::~CommandExecutor() = default;
 
 void CommandExecutor::set_timeout(int timeout_seconds) {
     timeout_seconds_ = timeout_seconds;
@@ -31,7 +29,7 @@ void CommandExecutor::set_max_output_size(size_t max_bytes) {
  * @return true se il tempo trascorso è maggiore o uguale a timeout_seconds_ (timeout superato).
  * @return false se il tempo trascorso è inferiore a timeout_seconds_ (ancora entro i limiti).
  */
-bool CommandExecutor::is_timeout_exceeded(const std::chrono::steady_clock::time_point& start) {
+bool CommandExecutor::is_timeout_exceeded(const std::chrono::steady_clock::time_point& start) const {
     auto now = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start);
     return elapsed.count() >= timeout_seconds_;
@@ -41,25 +39,24 @@ void CommandExecutor::kill_process(pid_t pid) {
     ::kill(pid, SIGKILL);
 }
 
-CommandResult CommandExecutor::execute(const std::string& command) {
+CommandResult CommandExecutor::execute(const std::string& command) const {
     CommandResult result;
-    result.return_code = -1;
-    result.success = false;
-    result.timed_out = false;
-    result.partial_results = false;
-    result.stdout_truncated = false;
-    result.stderr_truncated = false;
     
     auto start_time = std::chrono::steady_clock::now();
     
     int stdout_pipe[2];
     int stderr_pipe[2];
-    if (::pipe(stdout_pipe) == -1 || ::pipe(stderr_pipe) == -1) {
-        result.stderr_output = "Failed to create pipes";
-        return result;
+
+    if (::pipe(stdout_pipe) == -1) {
+        throw std::runtime_error("Failed to create stdout pipe: " + std::string(strerror(errno)));
     }
-    
-    pid_t pid = ::fork();
+    if (::pipe(stderr_pipe) == -1) {
+        ::close(stdout_pipe[0]);
+        ::close(stdout_pipe[1]);
+        throw std::runtime_error("Failed to create stderr pipe: " + std::string(strerror(errno)));
+    }
+
+    const pid_t pid = ::fork();
     
     if (pid == -1) {
         result.stderr_output = "Failed to fork process";
@@ -106,7 +103,7 @@ CommandResult CommandExecutor::execute(const std::string& command) {
         FD_SET(stdout_pipe[0], &read_fds);
         FD_SET(stderr_pipe[0], &read_fds);
         
-        struct timeval tv;
+        struct timeval tv{};
         tv.tv_sec = 0;
         tv.tv_usec = 100000; // 100ms
         
@@ -182,7 +179,7 @@ extern "C" {
         mcpwn::CommandExecutor executor(timeout_seconds);
         mcpwn::CommandResult cpp_result = executor.execute(command);
         
-        CCommandResult* c_result = new CCommandResult;
+        auto* c_result = new CCommandResult;
         c_result->stdout_output = ::strdup(cpp_result.stdout_output.c_str());
         c_result->stderr_output = ::strdup(cpp_result.stderr_output.c_str());
         c_result->return_code = cpp_result.return_code;

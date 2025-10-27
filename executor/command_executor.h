@@ -10,21 +10,21 @@ namespace mcpwn {
 struct CommandResult {
     std::string stdout_output;
     std::string stderr_output;
-    int return_code;
-    bool success;
-    bool timed_out;
-    bool partial_results;
-    long execution_time_ms;
-    bool stdout_truncated;
-    bool stderr_truncated;
+    int return_code = -1;
+    bool success = false;
+    bool timed_out = false;
+    bool partial_results = false;
+    long execution_time_ms = 0;
+    bool stdout_truncated = false;
+    bool stderr_truncated = false;
 };
 
 class CommandExecutor {
 public:
-    CommandExecutor(int timeout_seconds = 180);
+    explicit CommandExecutor(int timeout_seconds = 180);
     ~CommandExecutor();
 
-    CommandResult execute(const std::string& command);
+    CommandResult execute(const std::string& command) const;
     
     void set_timeout(int timeout_seconds);
     void set_max_output_size(size_t max_bytes);
@@ -33,8 +33,9 @@ private:
     int timeout_seconds_;
     size_t max_output_size_;
     
-    bool is_timeout_exceeded(const std::chrono::steady_clock::time_point& start);
-    void kill_process(pid_t pid);
+    [[nodiscard]] bool is_timeout_exceeded(const std::chrono::steady_clock::time_point& start) const;
+
+    static void kill_process(pid_t pid);
 };
 
 } // namespace mcpwn
