@@ -60,12 +60,11 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
     const pid_t pid = ::fork();
     
     if (pid == -1) {
-        result.stderr_output = "Failed to fork process";
         ::close(stdout_pipe_fds[0]);
         ::close(stdout_pipe_fds[1]);
         ::close(stderr_pipe_fds[0]);
         ::close(stderr_pipe_fds[1]);
-        return result;
+        throw std::runtime_error("Failed to fork process: " + std::string(strerror(errno)));
     }
     
     if (pid == 0) {
