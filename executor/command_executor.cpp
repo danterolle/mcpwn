@@ -44,16 +44,16 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
     CommandResult result;
 
     const auto start_time = std::chrono::steady_clock::now();
-    
-    int stdout_pipe[2];
-    int stderr_pipe[2];
 
-    if (::pipe(stdout_pipe) == -1) {
+    std::array<int, 2> stdout_pipe_fds{};
+    std::array<int, 2> stderr_pipe_fds{};
+
+    if (::pipe(stdout_pipe_fds.data()) == -1) {
         throw std::runtime_error("Failed to create stdout pipe: " + std::string(strerror(errno)));
     }
-    if (::pipe(stderr_pipe) == -1) {
-        ::close(stdout_pipe[0]);
-        ::close(stdout_pipe[1]);
+    if (::pipe(stderr_pipe_fds.data()) == -1) {
+        ::close(stdout_pipe_fds[0]);
+        ::close(stdout_pipe_fds[1]);
         throw std::runtime_error("Failed to create stderr pipe: " + std::string(strerror(errno)));
     }
 
@@ -61,32 +61,32 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
     
     if (pid == -1) {
         result.stderr_output = "Failed to fork process";
-        ::close(stdout_pipe[0]);
-        ::close(stdout_pipe[1]);
-        ::close(stderr_pipe[0]);
-        ::close(stderr_pipe[1]);
+        ::close(stdout_pipe_fds[0]);
+        ::close(stdout_pipe_fds[1]);
+        ::close(stderr_pipe_fds[0]);
+        ::close(stderr_pipe_fds[1]);
         return result;
     }
     
     if (pid == 0) {
-        ::close(stdout_pipe[0]);
-        ::close(stderr_pipe[0]);
+        ::close(stdout_pipe_fds[0]);
+        ::close(stderr_pipe_fds[0]);
         
-        ::dup2(stdout_pipe[1], STDOUT_FILENO);
-        ::dup2(stderr_pipe[1], STDERR_FILENO);
+        ::dup2(stdout_pipe_fds[1], STDOUT_FILENO);
+        ::dup2(stderr_pipe_fds[1], STDERR_FILENO);
         
-        ::close(stdout_pipe[1]);
-        ::close(stderr_pipe[1]);
+        ::close(stdout_pipe_fds[1]);
+        ::close(stderr_pipe_fds[1]);
         
         ::execl("/bin/bash", "bash", "-c", command.c_str(), nullptr);
         ::_exit(127);
     }
     
-    ::close(stdout_pipe[1]);
-    ::close(stderr_pipe[1]);
+    ::close(stdout_pipe_fds[1]);
+    ::close(stderr_pipe_fds[1]);
     
-    ::fcntl(stdout_pipe[0], F_SETFL, O_NONBLOCK);
-    ::fcntl(stderr_pipe[0], F_SETFL, O_NONBLOCK);
+    ::fcntl(stdout_pipe_fds[0], F_SETFL, O_NONBLOCK);
+    ::fcntl(stderr_pipe_fds[0], F_SETFL, O_NONBLOCK);
     
     bool process_running = true;
     bool stdout_truncated = false;
@@ -101,20 +101,20 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
         
         fd_set read_fds;
         FD_ZERO(&read_fds);
-        FD_SET(stdout_pipe[0], &read_fds);
-        FD_SET(stderr_pipe[0], &read_fds);
+        FD_SET(stdout_pipe_fds[0], &read_fds);
+        FD_SET(stderr_pipe_fds[0], &read_fds);
 
         timeval tv{};
         tv.tv_sec = 0;
         tv.tv_usec = 100000; // 100ms
 
-        const int max_fd = std::max(stdout_pipe[0], stderr_pipe[0]) + 1;
+        const int max_fd = std::max(stdout_pipe_fds[0], stderr_pipe_fds[0]) + 1;
 
         if (const int select_result = ::select(max_fd, &read_fds, nullptr, nullptr, &tv); select_result > 0) {
             std::vector<char> buffer(4096);
 
-            if (FD_ISSET(stdout_pipe[0], &read_fds)) {
-                if (const ssize_t n = read(stdout_pipe[0], buffer.data(), buffer.size()); n > 0) {
+            if (FD_ISSET(stdout_pipe_fds[0], &read_fds)) {
+                if (const ssize_t n = read(stdout_pipe_fds[0], buffer.data(), buffer.size()); n > 0) {
                     if (result.stdout_output.size() + n <= max_output_size_) {
                         result.stdout_output.append(buffer.data(), n);
                     } else {
@@ -126,8 +126,8 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
                 }
             }
             
-            if (FD_ISSET(stderr_pipe[0], &read_fds)) {
-                if (const ssize_t n = read(stderr_pipe[0], buffer.data(), buffer.size()); n > 0) {
+            if (FD_ISSET(stderr_pipe_fds[0], &read_fds)) {
+                if (const ssize_t n = read(stderr_pipe_fds[0], buffer.data(), buffer.size()); n > 0) {
                     if (result.stderr_output.size() + n <= max_output_size_) {
                         result.stderr_output.append(buffer.data(), n);
                     } else {
@@ -152,8 +152,8 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
     result.stdout_truncated = stdout_truncated;
     result.stderr_truncated = stderr_truncated;
     
-    ::close(stdout_pipe[0]);
-    ::close(stderr_pipe[0]);
+    ::close(stdout_pipe_fds[0]);
+    ::close(stderr_pipe_fds[0]);
 
     const auto end_time = std::chrono::steady_clock::now();
     result.execution_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
