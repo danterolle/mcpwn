@@ -31,8 +31,8 @@ void CommandExecutor::set_max_output_size(size_t max_bytes) {
  * @return false se il tempo trascorso è inferiore a timeout_seconds_ (ancora entro i limiti).
  */
 bool CommandExecutor::is_timeout_exceeded(const std::chrono::steady_clock::time_point& start) const {
-    auto now = std::chrono::steady_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start);
+    const auto now = std::chrono::steady_clock::now();
+    const auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start);
     return elapsed.count() >= timeout_seconds_;
 }
 
@@ -42,8 +42,8 @@ void CommandExecutor::kill_process(pid_t pid) {
 
 CommandResult CommandExecutor::execute(const std::string& command) const {
     CommandResult result;
-    
-    auto start_time = std::chrono::steady_clock::now();
+
+    const auto start_time = std::chrono::steady_clock::now();
     
     int stdout_pipe[2];
     int stderr_pipe[2];
@@ -107,21 +107,18 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
         timeval tv{};
         tv.tv_sec = 0;
         tv.tv_usec = 100000; // 100ms
-        
-        int max_fd = std::max(stdout_pipe[0], stderr_pipe[0]) + 1;
-        int select_result = ::select(max_fd, &read_fds, nullptr, nullptr, &tv);
-        
-        if (select_result > 0) {
+
+        const int max_fd = std::max(stdout_pipe[0], stderr_pipe[0]) + 1;
+
+        if (const int select_result = ::select(max_fd, &read_fds, nullptr, nullptr, &tv); select_result > 0) {
             std::vector<char> buffer(4096);
 
             if (FD_ISSET(stdout_pipe[0], &read_fds)) {
-                ssize_t n = read(stdout_pipe[0], buffer.data(), buffer.size());
-                if (n > 0) {
+                if (const ssize_t n = read(stdout_pipe[0], buffer.data(), buffer.size()); n > 0) {
                     if (result.stdout_output.size() + n <= max_output_size_) {
                         result.stdout_output.append(buffer.data(), n);
                     } else {
-                        size_t remaining = max_output_size_ - result.stdout_output.size();
-                        if (remaining > 0) {
+                        if (const size_t remaining = max_output_size_ - result.stdout_output.size(); remaining > 0) {
                             result.stdout_output.append(buffer.data(), remaining);
                         }
                         stdout_truncated = true;
@@ -130,13 +127,11 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
             }
             
             if (FD_ISSET(stderr_pipe[0], &read_fds)) {
-                ssize_t n = read(stderr_pipe[0], buffer.data(), buffer.size());
-                if (n > 0) {
+                if (const ssize_t n = read(stderr_pipe[0], buffer.data(), buffer.size()); n > 0) {
                     if (result.stderr_output.size() + n <= max_output_size_) {
                         result.stderr_output.append(buffer.data(), n);
                     } else {
-                        size_t remaining = max_output_size_ - result.stderr_output.size();
-                        if (remaining > 0) {
+                        if (const size_t remaining = max_output_size_ - result.stderr_output.size(); remaining > 0) {
                             result.stderr_output.append(buffer.data(), remaining);
                         }
                         stderr_truncated = true;
@@ -146,8 +141,7 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
         }
         
         int status;
-        pid_t wait_result = ::waitpid(pid, &status, WNOHANG);
-        if (wait_result == pid) {
+        if (const pid_t wait_result = ::waitpid(pid, &status, WNOHANG); wait_result == pid) {
             process_running = false;
             if (WIFEXITED(status)) {
                 result.return_code = WEXITSTATUS(status);
@@ -160,8 +154,8 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
     
     ::close(stdout_pipe[0]);
     ::close(stderr_pipe[0]);
-    
-    auto end_time = std::chrono::steady_clock::now();
+
+    const auto end_time = std::chrono::steady_clock::now();
     result.execution_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
         end_time - start_time).count();
     
