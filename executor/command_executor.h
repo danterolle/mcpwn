@@ -25,8 +25,6 @@ public:
     ~CommandExecutor();
 
     CommandResult execute(const std::string& command);
-    CommandResult execute_with_env(const std::string& command, 
-                                   const std::vector<std::string>& env_vars);
     
     void set_timeout(int timeout_seconds);
     void set_max_output_size(size_t max_bytes);

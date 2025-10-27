@@ -122,9 +122,7 @@ def execute_command_cpp(command: str, timeout: int = 180) -> CommandResult:
         executor_lib.free_command_result(c_result_ptr)
 
 
-# Fallback Python implementation
 def execute_command_python(command: str, timeout: int = 180) -> CommandResult:
-    """Fallback Python implementation using subprocess"""
     import subprocess
     import time
     

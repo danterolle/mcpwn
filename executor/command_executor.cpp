@@ -38,7 +38,7 @@ bool CommandExecutor::is_timeout_exceeded(const std::chrono::steady_clock::time_
 }
 
 void CommandExecutor::kill_process(pid_t pid) {
-    kill(pid, SIGKILL);
+    ::kill(pid, SIGKILL);
 }
 
 CommandResult CommandExecutor::execute(const std::string& command) {
@@ -54,42 +54,41 @@ CommandResult CommandExecutor::execute(const std::string& command) {
     
     int stdout_pipe[2];
     int stderr_pipe[2];
-    
-    if (pipe(stdout_pipe) == -1 || pipe(stderr_pipe) == -1) {
+    if (::pipe(stdout_pipe) == -1 || ::pipe(stderr_pipe) == -1) {
         result.stderr_output = "Failed to create pipes";
         return result;
     }
     
-    pid_t pid = fork();
+    pid_t pid = ::fork();
     
     if (pid == -1) {
         result.stderr_output = "Failed to fork process";
-        close(stdout_pipe[0]);
-        close(stdout_pipe[1]);
-        close(stderr_pipe[0]);
-        close(stderr_pipe[1]);
+        ::close(stdout_pipe[0]);
+        ::close(stdout_pipe[1]);
+        ::close(stderr_pipe[0]);
+        ::close(stderr_pipe[1]);
         return result;
     }
     
     if (pid == 0) {
-        close(stdout_pipe[0]);
-        close(stderr_pipe[0]);
+        ::close(stdout_pipe[0]);
+        ::close(stderr_pipe[0]);
         
-        dup2(stdout_pipe[1], STDOUT_FILENO);
-        dup2(stderr_pipe[1], STDERR_FILENO);
+        ::dup2(stdout_pipe[1], STDOUT_FILENO);
+        ::dup2(stderr_pipe[1], STDERR_FILENO);
         
-        close(stdout_pipe[1]);
-        close(stderr_pipe[1]);
+        ::close(stdout_pipe[1]);
+        ::close(stderr_pipe[1]);
         
-        execl("/bin/bash", "bash", "-c", command.c_str(), nullptr);
-        _exit(127);
+        ::execl("/bin/bash", "bash", "-c", command.c_str(), nullptr);
+        ::_exit(127);
     }
     
-    close(stdout_pipe[1]);
-    close(stderr_pipe[1]);
+    ::close(stdout_pipe[1]);
+    ::close(stderr_pipe[1]);
     
-    fcntl(stdout_pipe[0], F_SETFL, O_NONBLOCK);
-    fcntl(stderr_pipe[0], F_SETFL, O_NONBLOCK);
+    ::fcntl(stdout_pipe[0], F_SETFL, O_NONBLOCK);
+    ::fcntl(stderr_pipe[0], F_SETFL, O_NONBLOCK);
     
     bool process_running = true;
     bool stdout_truncated = false;
@@ -112,7 +111,7 @@ CommandResult CommandExecutor::execute(const std::string& command) {
         tv.tv_usec = 100000; // 100ms
         
         int max_fd = std::max(stdout_pipe[0], stderr_pipe[0]) + 1;
-        int select_result = select(max_fd, &read_fds, nullptr, nullptr, &tv);
+        int select_result = ::select(max_fd, &read_fds, nullptr, nullptr, &tv);
         
         if (select_result > 0) {
             char buffer[4096];
@@ -148,9 +147,8 @@ CommandResult CommandExecutor::execute(const std::string& command) {
             }
         }
         
-        // Check if process finished
         int status;
-        pid_t wait_result = waitpid(pid, &status, WNOHANG);
+        pid_t wait_result = ::waitpid(pid, &status, WNOHANG);
         if (wait_result == pid) {
             process_running = false;
             if (WIFEXITED(status)) {
@@ -162,8 +160,8 @@ CommandResult CommandExecutor::execute(const std::string& command) {
     result.stdout_truncated = stdout_truncated;
     result.stderr_truncated = stderr_truncated;
     
-    close(stdout_pipe[0]);
-    close(stderr_pipe[0]);
+    ::close(stdout_pipe[0]);
+    ::close(stderr_pipe[0]);
     
     auto end_time = std::chrono::steady_clock::now();
     result.execution_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -176,7 +174,7 @@ CommandResult CommandExecutor::execute(const std::string& command) {
     return result;
 }
 
-} // namespace mcpwn
+}
 
 // C API Implementation
 extern "C" {
@@ -185,8 +183,8 @@ extern "C" {
         mcpwn::CommandResult cpp_result = executor.execute(command);
         
         CCommandResult* c_result = new CCommandResult;
-        c_result->stdout_output = strdup(cpp_result.stdout_output.c_str());
-        c_result->stderr_output = strdup(cpp_result.stderr_output.c_str());
+        c_result->stdout_output = ::strdup(cpp_result.stdout_output.c_str());
+        c_result->stderr_output = ::strdup(cpp_result.stderr_output.c_str());
         c_result->return_code = cpp_result.return_code;
         c_result->success = cpp_result.success ? 1 : 0;
         c_result->timed_out = cpp_result.timed_out ? 1 : 0;
@@ -200,8 +198,8 @@ extern "C" {
     
     void free_command_result(CCommandResult* result) {
         if (result) {
-            free(result->stdout_output);
-            free(result->stderr_output);
+            ::free(result->stdout_output);
+            ::free(result->stderr_output);
             delete result;
         }
     }
