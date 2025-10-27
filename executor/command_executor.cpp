@@ -4,6 +4,7 @@
 #include <sys/select.h>
 #include <csignal>
 #include <fcntl.h>
+#include <vector>
 #include <iostream>
 
 namespace mcpwn {
@@ -111,17 +112,17 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
         int select_result = ::select(max_fd, &read_fds, nullptr, nullptr, &tv);
         
         if (select_result > 0) {
-            char buffer[4096];
-            
+            std::vector<char> buffer(4096);
+
             if (FD_ISSET(stdout_pipe[0], &read_fds)) {
-                ssize_t n = read(stdout_pipe[0], buffer, sizeof(buffer));
+                ssize_t n = read(stdout_pipe[0], buffer.data(), buffer.size());
                 if (n > 0) {
                     if (result.stdout_output.size() + n <= max_output_size_) {
-                        result.stdout_output.append(buffer, n);
+                        result.stdout_output.append(buffer.data(), n);
                     } else {
                         size_t remaining = max_output_size_ - result.stdout_output.size();
                         if (remaining > 0) {
-                            result.stdout_output.append(buffer, remaining);
+                            result.stdout_output.append(buffer.data(), remaining);
                         }
                         stdout_truncated = true;
                     }
@@ -129,14 +130,14 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
             }
             
             if (FD_ISSET(stderr_pipe[0], &read_fds)) {
-                ssize_t n = read(stderr_pipe[0], buffer, sizeof(buffer));
+                ssize_t n = read(stderr_pipe[0], buffer.data(), buffer.size());
                 if (n > 0) {
                     if (result.stderr_output.size() + n <= max_output_size_) {
-                        result.stderr_output.append(buffer, n);
+                        result.stderr_output.append(buffer.data(), n);
                     } else {
                         size_t remaining = max_output_size_ - result.stderr_output.size();
                         if (remaining > 0) {
-                            result.stderr_output.append(buffer, remaining);
+                            result.stderr_output.append(buffer.data(), remaining);
                         }
                         stderr_truncated = true;
                     }
