@@ -9,18 +9,18 @@
 
 namespace mcpwn {
 
-CommandExecutor::CommandExecutor(int timeout_seconds)
+CommandExecutor::CommandExecutor(const int timeout_seconds)
     : timeout_seconds_(timeout_seconds)
     , max_output_size_(10 * 1024 * 1024) // 10MB default
 {}
 
 CommandExecutor::~CommandExecutor() = default;
 
-void CommandExecutor::set_timeout(int timeout_seconds) {
+void CommandExecutor::set_timeout(const int timeout_seconds) {
     timeout_seconds_ = timeout_seconds;
 }
 
-void CommandExecutor::set_max_output_size(size_t max_bytes) {
+void CommandExecutor::set_max_output_size(const size_t max_bytes) {
     max_output_size_ = max_bytes;
 }
 
@@ -36,7 +36,7 @@ bool CommandExecutor::is_timeout_exceeded(const std::chrono::steady_clock::time_
     return elapsed.count() >= timeout_seconds_;
 }
 
-void CommandExecutor::kill_process(pid_t pid) {
+void CommandExecutor::kill_process(const pid_t pid) {
     ::kill(pid, SIGKILL);
 }
 
