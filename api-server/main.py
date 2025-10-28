@@ -18,9 +18,9 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_: FastAPI):
     logger.info("Starting API Server...")
-    logger.info(f"Command executor library: {os.getenv('EXECUTOR_LIB_PATH', 'libcommand_executor.so')}")
+    logger.info(f"Command executor library: {os.getenv('EXECUTOR_LIB_PATH', 'libcommand_executor.dylib')}")
     yield
     logger.info("Shutting down API Server...")
 
@@ -29,7 +29,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="mcpwn API Server",
         description="Security tools execution API",
-        version="2.0.0",
+        version="1.0.0",
         lifespan=lifespan
     )
     
@@ -61,9 +61,7 @@ def main():
     
     logger.info(f"Starting API Server on {args.host}:{port}")
     logger.info(f"Default command timeout: {args.timeout}s")
-    
-    # app = create_app()
-    
+
     uvicorn.run(
         "main:create_app",
         host=args.host,

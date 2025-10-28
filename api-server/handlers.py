@@ -1,17 +1,18 @@
 import ctypes
 import logging
 import os
+import shlex
 import shutil
-from typing import Optional, Dict, Any
+from typing import Optional, Dict
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Load C++ executor library
-EXECUTOR_LIB_PATH = os.getenv('EXECUTOR_LIB_PATH', './lib/libcommand_executor.so')
+EXECUTOR_LIB_PATH = os.getenv('EXECUTOR_LIB_PATH', './lib/libcommand_executor.dylib')
+
 
 try:
     executor_lib = ctypes.CDLL(EXECUTOR_LIB_PATH)
@@ -30,7 +31,6 @@ try:
             ("stderr_truncated", ctypes.c_int),
         ]
     
-    # Configure function signatures
     executor_lib.execute_command.argtypes = [ctypes.c_char_p, ctypes.c_int]
     executor_lib.execute_command.restype = ctypes.POINTER(CCommandResult)
     executor_lib.free_command_result.argtypes = [ctypes.POINTER(CCommandResult)]
@@ -66,9 +66,8 @@ class NmapRequest(BaseModel):
     scan_type: str = Field(default="-sCV")
     additional_args: str = Field(default="-T4 -Pn")
     
-    @validator('target')
-    def validate_target(cls, v):
-        # Basic validation - expand as needed
+    @field_validator('target')
+    def validate_target(self, v):
         if any(c in v for c in [';', '&', '|', '`', '$', '\n']):
             raise ValueError('Invalid characters in target')
         return v
@@ -122,6 +121,8 @@ def execute_command_cpp(command: str, timeout: int = 180) -> CommandResult:
         executor_lib.free_command_result(c_result_ptr)
 
 
+# The C++ library may not be available and this software should not crash,
+# so we use subprocess as a fallback option.
 def execute_command_python(command: str, timeout: int = 180) -> CommandResult:
     import subprocess
     import time
@@ -188,12 +189,13 @@ async def run_nmap(req: NmapRequest):
     if not shutil.which('nmap'):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="nmap is not installed or not in PATH"
+            detail="nmap is not installed or not in $PATH"
         )
-    
-    command = f"nmap {req.scan_type} {req.additional_args} -p {req.ports} {req.target}"
+
+    command_parts = ["nmap", *req.scan_type.split(), *req.additional_args.split(), "-p", req.ports, req.target]
+    command = shlex.join(command_parts)
     logger.info(f"Executing nmap: {command}")
-    
+
     timeout = int(os.getenv('DEFAULT_TIMEOUT', 300))
     result = execute_command(command, timeout)
     
