@@ -3,6 +3,7 @@ import logging
 import os
 import shlex
 import shutil
+import sys
 from typing import Optional, Dict
 
 from fastapi import APIRouter, HTTPException, status
@@ -11,13 +12,27 @@ from pydantic import BaseModel, Field, field_validator
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-EXECUTOR_LIB_PATH = os.getenv('EXECUTOR_LIB_PATH', './lib/libcommand_executor.dylib')
+
+def get_default_executor_path():
+    base_path = './lib/libcommand_executor'
+
+    if sys.platform.startswith('linux'):
+        return f"{base_path}.so"
+    elif sys.platform == 'darwin':
+        return f"{base_path}.dylib"
+    elif sys.platform == 'win32':
+        return f"{base_path}.dll"
+    else:
+        logger.warning(f"Platform '{sys.platform}' not supported")
+        return "non_existent_library_path" # Non esiste, ma meglio di ritornare una stringa vuota
+
+DEFAULT_EXECUTOR_PATH = get_default_executor_path()
+EXECUTOR_LIB_PATH = os.getenv('EXECUTOR_LIB_PATH', DEFAULT_EXECUTOR_PATH)
 
 
 try:
     executor_lib = ctypes.CDLL(EXECUTOR_LIB_PATH)
-    
-    # Define C structures
+
     class CCommandResult(ctypes.Structure):
         _fields_ = [
             ("stdout_output", ctypes.c_char_p),
@@ -61,14 +76,14 @@ class GenericCommandRequest(BaseModel):
 
 
 class NmapRequest(BaseModel):
-    target: str = Field(..., min_length=1)
-    ports: str = Field(default="1-1000")
-    scan_type: str = Field(default="-sCV")
-    additional_args: str = Field(default="-T4 -Pn")
+    target: str = Field(..., min_length=1, description="Target IP, hostname, or CIDR range")
+    ports: str = Field(default="1-1000", description="Ports to scan (e.g., '22,80,443', '1-1024')")
+    scan_type: str = Field(default="-sCV", description="Nmap scan type arguments (e.g., '-sS -sV')")
+    additional_args: str = Field(default="-T4 -Pn", description="Additional nmap arguments")
     
-    @field_validator('target')
+    @field_validator('target', 'ports', 'scan_type', 'additional_args')
     def validate_target(self, v):
-        if any(c in v for c in [';', '&', '|', '`', '$', '\n']):
+        if any(c in v for c in [';', '&', '|', '`', '$', '<', '>', '\n']):
             raise ValueError('Invalid characters in target')
         return v
 
@@ -121,8 +136,8 @@ def execute_command_cpp(command: str, timeout: int = 180) -> CommandResult:
         executor_lib.free_command_result(c_result_ptr)
 
 
-# The C++ library may not be available and this software should not crash,
-# so we use subprocess as a fallback option.
+# Se la libreria C++ non è disponibile per una qualsiasi ragione,
+# mcpwn non dovrebbe crashare, motivo per cui usiamo subprocess come opzione di fallback
 def execute_command_python(command: str, timeout: int = 180) -> CommandResult:
     import subprocess
     import time
@@ -135,7 +150,10 @@ def execute_command_python(command: str, timeout: int = 180) -> CommandResult:
             ['bash', '-c', command],
             capture_output=True,
             timeout=timeout,
-            text=True
+            text=True,
+            check=False
+            # Non solleviamo eccezioni per return code che siano non-zero,
+            # vogliamo riportare all'utente esattamente cosa è successo
         )
         
         execution_time_ms = int((time.time() - start_time) * 1000)
@@ -173,7 +191,7 @@ def execute_command(command: str, timeout: int = 180) -> CommandResult:
         return execute_command_python(command, timeout)
 
 
-# API Endpoints
+# API Endpoints.
 @router.post("/api/command", response_model=CommandResult)
 async def generic_command(req: GenericCommandRequest):
     logger.warning(f"Generic command execution requested: {req.command[:50]}...")
@@ -204,6 +222,7 @@ async def run_nmap(req: NmapRequest):
 
 @router.get("/health", response_model=HealthStatus)
 async def health_check():
+    # La lista dei tool potrebbe variare
     main_tools = ["nmap", "gobuster", "nikto"]
     tools_status = {}
     

@@ -7,7 +7,7 @@ type CommandResult struct {
 	Success         bool   `json:"success"`
 	TimedOut        bool   `json:"timed_out"`
 	PartialResults  bool   `json:"partial_results"`
-	ExecutionTimeMs *int64 `json:"execution_time_ms,omitempty"` // Added for C++ executor
+	ExecutionTimeMs *int64 `json:"execution_time_ms,omitempty"`
 	StdoutTruncated bool   `json:"stdout_truncated"`
 	StderrTruncated bool   `json:"stderr_truncated"`
 }
@@ -35,5 +35,5 @@ type HealthStatus struct {
 	Message               string          `json:"message"`
 	ToolsStatus           map[string]bool `json:"tools_status"`
 	AllMainToolsAvailable bool            `json:"all_main_tools_available"`
-	ExecutorBackend       string          `json:"executor_backend"` // Added
+	ExecutorBackend       string          `json:"executor_backend"`
 }

@@ -20,7 +20,8 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     logger.info("Starting API Server...")
-    logger.info(f"Command executor library: {os.getenv('EXECUTOR_LIB_PATH', 'libcommand_executor.dylib')}")
+    lib_path = os.getenv('EXECUTOR_LIB_PATH', 'libcommand_executor.dylib')
+    logger.info(f"Attempting to load command executor library from: {lib_path}")
     yield
     logger.info("Shutting down API Server...")
 
@@ -36,6 +37,8 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
+        # in produzione andrebbe usata una lista specifica di domini
+        # magari qualcosa come: origins=os.getenv("CORS_ORIGINS", "").split(",")
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
