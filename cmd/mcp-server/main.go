@@ -55,8 +55,8 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/tools/nmap", createToolProxyHandler(Client, "api/tools/nmap"))
+	mux.HandleFunc("/tools/gobuster", createToolProxyHandler(Client, "api/tools/gobuster"))
 	mux.HandleFunc("/tools/command", createToolProxyHandler(Client, "api/command"))
-	// Add more tool handlers as needed
 
 	slog.Info("Starting MCP server on", "port", *mcpPort)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", *mcpPort), mux); err != nil {

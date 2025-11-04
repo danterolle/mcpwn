@@ -16,3 +16,6 @@ Makefile
 
 # VSCode
 .vscode/settings.json
+
+# IntelliJ
+.idea/

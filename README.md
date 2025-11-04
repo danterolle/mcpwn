@@ -33,6 +33,18 @@ curl -X POST http://localhost:8000/tools/nmap \
   }'
 ```
 
+Esempio usando `gobuster`:
+```
+curl -X POST http://localhost:8000/tools/gobuster \
+-H "Content-Type: application/json" \
+-d '{
+    "mode": "dir",
+    "url": "http://example.com",
+    "wordlist": "/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt",
+    "additional_args": "-t 50"
+}'
+```
+
 ## 1. Composizione del Gruppo:
 
 Camonita Dario

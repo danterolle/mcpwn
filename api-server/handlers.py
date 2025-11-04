@@ -87,6 +87,18 @@ class NmapRequest(BaseModel):
             raise ValueError('Invalid characters in target')
         return v
 
+class GobusterRequest(BaseModel):
+    mode: str = Field(..., description="Gobuster mode (e.g., 'dir', 'dns', 'vhost')")
+    url: str = Field(..., description="The target URL or domain")
+    wordlist: str = Field(..., description="Path to the wordlist")
+    additional_args: str = Field(default="", description="Additional gobuster arguments")
+
+    @field_validator('mode', 'url', 'wordlist', 'additional_args')
+    def validate_input(self, v):
+        if any(c in v for c in [';', '&', '|', '`', '$', '<', '>', '\n']):
+            raise ValueError('Invalid characters in input')
+        return v
+
 
 class HealthStatus(BaseModel):
     status: str
@@ -217,6 +229,32 @@ async def run_nmap(req: NmapRequest):
     timeout = int(os.getenv('DEFAULT_TIMEOUT', 300))
     result = execute_command(command, timeout)
     
+    return result
+
+
+@router.post("/api/tools/gobuster", response_model=CommandResult)
+async def run_gobuster(req: GobusterRequest):
+    if not shutil.which('gobuster'):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="gobuster is not installed or not in $PATH"
+        )
+
+    command_parts = [
+        "gobuster",
+        req.mode,
+        "-u", req.url,
+        "-w", req.wordlist
+    ]
+    if req.additional_args:
+        command_parts.extend(shlex.split(req.additional_args))
+
+    command = shlex.join(command_parts)
+    logger.info(f"Executing gobuster: {command}")
+
+    timeout = int(os.getenv('DEFAULT_TIMEOUT', 600))
+    result = execute_command(command, timeout)
+
     return result
 
 
