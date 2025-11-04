@@ -70,7 +70,9 @@ class CommandResult(BaseModel):
     stdout_truncated: bool = False
     stderr_truncated: bool = False
 
-
+# https://docs.pydantic.dev/latest/concepts/fields/
+# https://docs.python.org/3/library/constants.html#Ellipsis
+# "..." è usato per indicare che il campo è obbligatorio
 class GenericCommandRequest(BaseModel):
     command: str = Field(..., min_length=1, max_length=10000)
 
