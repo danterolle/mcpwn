@@ -17,6 +17,9 @@ CommandExecutor::CommandExecutor(const int timeout_seconds)
 CommandExecutor::~CommandExecutor() = default;
 
 void CommandExecutor::set_timeout(const int timeout_seconds) {
+    // oppure potrei scrivere
+    // this->timeout_seconds = timeout_seconds;
+    // usare l'underscore finale migliora la leggibilità.
     timeout_seconds_ = timeout_seconds;
 }
 
@@ -47,6 +50,8 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
 
     std::array<int, 2> stdout_pipe_fds{};
     std::array<int, 2> stderr_pipe_fds{};
+    // [0] lettura
+    // [1] scrittura
 
     if (::pipe(stdout_pipe_fds.data()) == -1) {
         throw std::runtime_error("Failed to create stdout pipe: " + std::string(strerror(errno)));
@@ -58,6 +63,14 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
     }
 
     const pid_t pid = ::fork();
+    /*
+     * fork() crea una copia esatta del processo corrente
+     * e restituisce:
+     *
+     * -1 al processo padre se la creazione del figlio fallisce.
+     * 0 al processo figlio - successo.
+     * L'ID del processo (PID) del figlio al processo padre.
+     */
     
     if (pid == -1) {
         ::close(stdout_pipe_fds[0]);
@@ -83,7 +96,13 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
     
     ::close(stdout_pipe_fds[1]);
     ::close(stderr_pipe_fds[1]);
-    
+
+    /*
+     * Imposta le estremità di lettura delle pipe in modalità non bloccante.
+     * Ciò significa che quando il padre tenterà di leggere, se non ci sono dati,
+     * la chiamata read() tornerà immediatamente (non c'è niente da leggere),
+     * invece di attendere all'infinito.
+     */
     ::fcntl(stdout_pipe_fds[0], F_SETFL, O_NONBLOCK);
     ::fcntl(stderr_pipe_fds[0], F_SETFL, O_NONBLOCK);
     
@@ -111,6 +130,11 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
                 output.append(buffer.data(), remaining_space);
             }
             is_truncated = true;
+            // Evitiamo che la pipe si riempia
+            // buttando via tutto il resto dell'output della pipe.
+            //
+            // Altrimenti bloccheremmo il processo figlia in attesa
+            // di poter scrivere
             while (read(fd, buffer.data(), buffer.size()) > 0) {}
         }
     };
@@ -121,18 +145,30 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
             result.timed_out = true;
             break;
         }
-        
+
+        // usiamo fd_set per gestire un insieme di file descriptors
+        // https://linux.die.net/man/3/fd_set
         fd_set read_fds;
+
+        // Inizializza il "file descriptor set"
+        // e aggiunge i fd al set
         FD_ZERO(&read_fds);
         FD_SET(stdout_pipe_fds[0], &read_fds);
         FD_SET(stderr_pipe_fds[0], &read_fds);
 
         timeval tv{};
         tv.tv_sec = 0;
-        tv.tv_usec = 100000; // 100ms
+        tv.tv_usec = 100000; // 100 ms
 
         const int max_fd = std::max(stdout_pipe_fds[0], stderr_pipe_fds[0]) + 1;
 
+        /*
+         * Si attiva se succede una di queste tre cose:
+         *
+         * 1. arrivano dati sulla pipe di stdout
+         * 2. arrivano dati sulla pipe di stderr
+         * 3. sono passati 100 millisecondi
+         */
         if (const int select_result = ::select(max_fd, &read_fds, nullptr, nullptr, &tv); select_result > 0) {
             if (FD_ISSET(stdout_pipe_fds[0], &read_fds)) {
                 process_pipe(stdout_pipe_fds[0], result.stdout_output, stdout_truncated);
@@ -180,7 +216,6 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
 
 }
 
-// C API Implementation
 extern "C" {
     CCommandResult* execute_command(const char* command, int timeout_seconds) {
         mcpwn::CommandExecutor executor(timeout_seconds);
