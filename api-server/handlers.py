@@ -4,7 +4,7 @@ import os
 import shlex
 import shutil
 import sys
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
@@ -14,7 +14,7 @@ router = APIRouter()
 
 
 def get_default_executor_path():
-    base_path = './lib/libcommand_executor'
+    base_path: str = './lib/libcommand_executor'
 
     if sys.platform.startswith('linux'):
         return f"{base_path}.so"
@@ -157,7 +157,7 @@ def execute_command_python(command: str, timeout: int = 180) -> CommandResult:
     import time
     
     logger.info(f"Executing command (Python fallback): {command[:100]}...")
-    start_time = time.time()
+    start_time: float = time.time()
     
     try:
         proc = subprocess.run(
@@ -170,7 +170,7 @@ def execute_command_python(command: str, timeout: int = 180) -> CommandResult:
             # vogliamo riportare all'utente esattamente cosa è successo
         )
         
-        execution_time_ms = int((time.time() - start_time) * 1000)
+        execution_time_ms: int = int((time.time() - start_time) * 1000)
         
         return CommandResult(
             stdout=proc.stdout,
@@ -184,7 +184,7 @@ def execute_command_python(command: str, timeout: int = 180) -> CommandResult:
             stderr_truncated=False,
         )
     except subprocess.TimeoutExpired as e:
-        execution_time_ms = int((time.time() - start_time) * 1000)
+        execution_time_ms: int = int((time.time() - start_time) * 1000)
         return CommandResult(
             stdout=e.stdout or "",
             stderr=e.stderr or "",
@@ -210,8 +210,8 @@ def execute_command(command: str, timeout: int = 180) -> CommandResult:
 async def generic_command(req: GenericCommandRequest):
     logger.warning(f"Generic command execution requested: {req.command[:50]}...")
     
-    timeout = int(os.getenv('DEFAULT_TIMEOUT', 180))
-    result = execute_command(req.command, timeout)
+    timeout: int = int(os.getenv('DEFAULT_TIMEOUT', 180))
+    result: CommandResult = execute_command(req.command, timeout)
     
     return result
 
@@ -224,7 +224,7 @@ async def run_nmap(req: NmapRequest):
             detail="nmap is not installed or not in $PATH"
         )
 
-    command_parts = [
+    command_parts: List[str] = [
         "nmap", 
         *req.scan_type.split(), 
         *req.additional_args.split(), 
@@ -249,7 +249,7 @@ async def run_gobuster(req: GobusterRequest):
             detail="gobuster is not installed or not in $PATH"
         )
 
-    command_parts = [
+    command_parts: List[str] = [
         "gobuster",
         req.mode,
         "-u", req.url,
@@ -269,18 +269,29 @@ async def run_gobuster(req: GobusterRequest):
 
 @router.get("/health", response_model=HealthStatus)
 async def health_check():
-    main_tools = ["nmap", "gobuster", "nikto"]
-    tools_status = {}
-    
-    for tool in main_tools:
-        tools_status[tool] = shutil.which(tool) is not None
-    
-    all_available = all(tools_status.values())
-    
-    return HealthStatus(
-        status="healthy",
-        message="API Server is running",
-        tools_status=tools_status,
-        all_main_tools_available=all_available,
-        executor_backend="C++" if EXECUTOR_AVAILABLE else "Python"
-    )
+    try:
+        main_tools: List[str] = ["nmap", "gobuster", "nikto"]
+        tools_status: Dict[str, bool] = {}
+
+        for tool in main_tools:
+            try:
+                tools_status[tool] = shutil.which(tool) is not None
+            except Exception as e:
+                logger.warning(f"Error checking {tool}: {e}")
+                tools_status[tool] = False
+
+        all_available = all(tools_status.values())
+
+        return HealthStatus(
+            status="healthy",
+            message="API Server is running",
+            tools_status=tools_status,
+            all_main_tools_available=all_available,
+            executor_backend="C++" if EXECUTOR_AVAILABLE else "Python"
+        )
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Health check failed: {str(e)}"
+        )
