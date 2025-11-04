@@ -222,7 +222,14 @@ async def run_nmap(req: NmapRequest):
             detail="nmap is not installed or not in $PATH"
         )
 
-    command_parts = ["nmap", *req.scan_type.split(), *req.additional_args.split(), "-p", req.ports, req.target]
+    command_parts = [
+        "nmap", 
+        *req.scan_type.split(), 
+        *req.additional_args.split(), 
+        "-p", 
+        req.ports, 
+        req.target
+    ]
     command = shlex.join(command_parts)
     logger.info(f"Executing nmap: {command}")
 
@@ -260,7 +267,6 @@ async def run_gobuster(req: GobusterRequest):
 
 @router.get("/health", response_model=HealthStatus)
 async def health_check():
-    # La lista dei tool potrebbe variare
     main_tools = ["nmap", "gobuster", "nikto"]
     tools_status = {}
     
