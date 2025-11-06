@@ -54,7 +54,12 @@ func (c *Client) Post(ctx context.Context, endpoint string, data interface{}) (m
 	}(resp.Body)
 
 	if resp.StatusCode >= 400 {
-		body, _ := io.ReadAll(resp.Body)
+		body, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			slog.Warn("Failed to read error response body", "error", readErr)
+			return result, fmt.Errorf("server returned error: %s", resp.Status)
+
+		}
 		return result, fmt.Errorf("server returned error: %s - %s", resp.Status, string(body))
 	}
 

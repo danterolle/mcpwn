@@ -41,7 +41,8 @@ func createToolProxyHandler[T any](Client *client.Client, apiEndpoint string) ht
 		// e il client che ha fatto la richiesta chiude la connessione dopo 10 secondi?
 		// ----------------------------------------------------------------------------
 
-		resultChan := make(chan proxyResult)
+		// Bufferizziamo di 1 elemento, appena invia il risultato termina la goroutine
+		resultChan := make(chan proxyResult, 1)
 
 		ctx := r.Context()
 
@@ -85,7 +86,7 @@ func main() {
 	timeout := time.Duration(*timeoutReq) * time.Second
 	Client := client.New(*serverURL, timeout)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	health, err := Client.CheckHealth(ctx)
