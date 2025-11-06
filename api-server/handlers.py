@@ -67,7 +67,7 @@ def execute_command_cpp(command: str, timeout: int = 180) -> CommandResult:
     
     logger.info(f"Executing command: {command[:100]}...")
     
-    c_result_ptr = executor_lib.execute_command(
+    c_result_ptr: CommandResult = executor_lib.execute_command(
         command.encode('utf-8'),
         timeout
     )
@@ -79,7 +79,7 @@ def execute_command_cpp(command: str, timeout: int = 180) -> CommandResult:
         )
     
     try:
-        c_result = c_result_ptr.contents
+        c_result: CommandResult = c_result_ptr.contents
         
         result = CommandResult(
             stdout=c_result.stdout_output.decode('utf-8', errors='replace') if c_result.stdout_output else "",
