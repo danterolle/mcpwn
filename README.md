@@ -30,8 +30,10 @@ curl -X POST http://localhost:8000/tools/nmap \
     "ports": "80,443",
     "scan_type": "-sV",
     "additional_args": "-T4"
-  }'
+  }' | jq
 ```
+
+Eventualmente si può usare `jq` per formattare l'output JSON. 
 
 Esempio usando `gobuster`:
 ```
