@@ -1,5 +1,14 @@
 package models
 
+// CommandResult
+// ExecutionTimeMs *int64 `json:"execution_time_ms,omitempty"` ?
+// Usare *int64 ci permette di fare una distinzione importante:
+//
+// Se il valore è 0 il puntatore non sarà nil, ma punterà a una locazione di memoria che contiene il valore 0.
+// Significherebbe che "il tempo di esecuzione è stato di 0ms".
+//
+// Se il valore invece non è presente nel JSON allora il puntatore nella struct rimarrà nil.
+// Significa l'informazione sul tempo di esecuzione è assente, vuota.
 type CommandResult struct {
 	Stdout          string `json:"stdout"`
 	Stderr          string `json:"stderr"`
