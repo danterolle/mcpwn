@@ -27,7 +27,8 @@ class NmapRequest(BaseModel):
     additional_args: str = Field(default="-T4 -Pn", description="Additional nmap arguments")
 
     @field_validator('target', 'ports', 'scan_type', 'additional_args')
-    def validate_target(input_value: str): # pylint: disable=no-self-argument
+    @classmethod
+    def validate_target(cls, input_value: str):
         if any(c in input_value for c in [';', '&', '|', '`', '$', '<', '>', '\n']):
             raise ValueError('Invalid characters in target')
         return input_value
@@ -40,7 +41,8 @@ class GobusterRequest(BaseModel):
     additional_args: str = Field(default="", description="Additional gobuster arguments")
 
     @field_validator('mode', 'url', 'wordlist', 'additional_args')
-    def validate_input(input_value: str): # pylint: disable=no-self-argument
+    @classmethod
+    def validate_input(cls, input_value: str):
         if any(c in input_value for c in [';', '&', '|', '`', '$', '<', '>', '\n']):
             raise ValueError('Invalid characters in input')
         return input_value

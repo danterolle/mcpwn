@@ -54,7 +54,7 @@ def main():
     parser.add_argument('--port', type=int, default=5000, help='Port to listen on')
     parser.add_argument('--timeout', type=int, default=180, help='Default command timeout in seconds')
     parser.add_argument('--host', default='0.0.0.0', help='Host to bind to')
-    parser.add_argument('--workers', type=int, default=4, help='Number of worker processes')
+    parser.add_argument('--workers', type=int, default=2, help='Number of worker processes')
     
     args = parser.parse_args()
     
