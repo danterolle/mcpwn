@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-
-	"../../internal/models"
-
+	"mcpwn/internal/models"
 	"net/http"
 	"time"
 )
