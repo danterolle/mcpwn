@@ -11,14 +11,14 @@ make clean        # Pulisce i file di build
 
 Una volta eseguita la build completa, avviare i moduli nell'ordine corretto:
 
-```
-make run-api
+```example
+make run-api API_ARGS="--workers 4"
 ```
 
 In un altro terminale, avviare il server API:
 
-```
-make run-mcp
+```example
+make run-mcp MCP_ARGS="--timeout 60"
 ```
 
 Esempio di chiamata API per eseguire una scansione usando `nmap`:

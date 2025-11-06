@@ -13,6 +13,10 @@ VENV := $(PYTHON_DIR)/.venv
 PIP := $(VENV)/bin/pip
 PYTHON_VENV := $(VENV)/bin/python
 
+# Variabili per passare argomenti (se necessari)
+API_ARGS :=
+MCP_ARGS :=
+
 all: build
 
 build: cpp-executor python-deps go-mcp
@@ -49,11 +53,11 @@ run-api: cpp-executor python-deps
 	@echo "Starting Python API server..."
 	@cd $(PYTHON_DIR) && \
 		EXECUTOR_LIB_PATH=../$(LIB_DIR)/lib/libcommand_executor.dylib \
-		.venv/bin/python3.11 main.py --port 5000
+		.venv/bin/python3.11 main.py --port 5000 $(API_ARGS)
 
 run-mcp: go-mcp
 	@echo "Starting Go MCP server..."
-	@$(BIN_DIR)/mcp-server --port 8000 --server "http://localhost:5000"
+	@$(BIN_DIR)/mcp-server --port 8000 --server "http://localhost:5000" $(MCP_ARGS)
 
 clean:
 	@echo "Cleaning..."
