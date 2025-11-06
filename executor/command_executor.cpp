@@ -148,7 +148,7 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
 
         // usiamo fd_set per gestire un insieme di file descriptors
         // https://linux.die.net/man/3/fd_set
-        fd_set read_fds;
+        fd_set read_fds{};
 
         // Inizializza il "file descriptor set"
         // e aggiunge i fd al set
@@ -179,7 +179,7 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
             }
         }
         
-        int status;
+        int status{};
         if (const pid_t wait_result = ::waitpid(pid, &status, WNOHANG); wait_result == pid) {
             process_running = false;
             if (WIFEXITED(status)) {
@@ -221,7 +221,7 @@ extern "C" {
         mcpwn::CommandExecutor executor(timeout_seconds);
         mcpwn::CommandResult cpp_result = executor.execute(command);
         
-        auto* c_result = new CCommandResult;
+        auto* c_result = new CCommandResult{};
         c_result->stdout_output = ::strdup(cpp_result.stdout_output.c_str());
         c_result->stderr_output = ::strdup(cpp_result.stderr_output.c_str());
         c_result->return_code = cpp_result.return_code;
