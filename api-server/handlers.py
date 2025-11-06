@@ -4,7 +4,6 @@ import os
 import shlex
 import shutil
 import sys
-from typing import List
 
 from fastapi import APIRouter, HTTPException, status
 from models import *
@@ -173,7 +172,7 @@ async def run_nmap(req: NmapRequest):
             detail="nmap is not installed or not in $PATH"
         )
 
-    command_parts: List[str] = [
+    command_parts: list[str] = [
         "nmap", 
         *req.scan_type.split(), 
         *req.additional_args.split(), 
@@ -198,7 +197,7 @@ async def run_gobuster(req: GobusterRequest):
             detail="gobuster is not installed or not in $PATH"
         )
 
-    command_parts: List[str] = [
+    command_parts: list[str] = [
         "gobuster",
         req.mode,
         "-u", req.url,
@@ -219,7 +218,7 @@ async def run_gobuster(req: GobusterRequest):
 @router.get("/health", response_model=HealthStatus)
 async def health_check():
     try:
-        main_tools: List[str] = ["nmap", "gobuster", "nikto"]
+        main_tools: list[str] = ["nmap", "gobuster", "nikto"]
         tools_status: Dict[str, bool] = {}
 
         for tool in main_tools:
