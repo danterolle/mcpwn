@@ -5,9 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
-	"mcpwn/internal/client"
 	"net/http"
 	"time"
+
+	"../../internal/client"
 )
 
 func createToolProxyHandler(Client *client.Client, apiEndpoint string) http.HandlerFunc {

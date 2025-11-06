@@ -4,7 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"mcpwn/internal/models"
+	"io"
+	"log/slog"
+
+	"../../internal/models"
+
 	"net/http"
 	"time"
 )
@@ -36,7 +40,12 @@ func (c *Client) Post(endpoint string, data interface{}) (models.CommandResult, 
 	if err != nil {
 		return result, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			slog.Error("Failed to close response body", "error", err)
+		}
+	}(resp.Body)
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return result, fmt.Errorf("failed to decode response: %w", err)
@@ -52,7 +61,12 @@ func (c *Client) CheckHealth() (models.HealthStatus, error) {
 	if err != nil {
 		return status, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			slog.Error("Failed to close response body", "error", err)
+		}
+	}(resp.Body)
 
 	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
 		return status, fmt.Errorf("failed to decode health response: %w", err)
