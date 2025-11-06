@@ -1,5 +1,4 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional, Dict
 
 class CommandResult(BaseModel):
     stdout: str
@@ -8,7 +7,7 @@ class CommandResult(BaseModel):
     success: bool
     timed_out: bool
     partial_results: bool
-    execution_time_ms: Optional[int] = None
+    execution_time_ms: int | None = None
     stdout_truncated: bool = False
     stderr_truncated: bool = False
 
@@ -51,6 +50,6 @@ class GobusterRequest(BaseModel):
 class HealthStatus(BaseModel):
     status: str
     message: str
-    tools_status: Dict[str, bool]
+    tools_status: dict[str, bool]
     all_main_tools_available: bool
     executor_backend: str

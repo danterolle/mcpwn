@@ -219,7 +219,7 @@ async def run_gobuster(req: GobusterRequest):
 async def health_check():
     try:
         main_tools: list[str] = ["nmap", "gobuster", "nikto"]
-        tools_status: Dict[str, bool] = {}
+        tools_status: dict[str, bool] = {}
 
         for tool in main_tools:
             try:
