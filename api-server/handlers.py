@@ -26,8 +26,8 @@ def get_default_executor_path():
         logger.warning(f"Platform '{sys.platform}' not supported")
         return "non_existent_library_path" # Non esiste, ma meglio di ritornare una stringa vuota
 
-DEFAULT_EXECUTOR_PATH = get_default_executor_path()
-EXECUTOR_LIB_PATH = os.getenv('EXECUTOR_LIB_PATH', DEFAULT_EXECUTOR_PATH)
+DEFAULT_EXECUTOR_PATH: str = get_default_executor_path()
+EXECUTOR_LIB_PATH: str = os.getenv('EXECUTOR_LIB_PATH', DEFAULT_EXECUTOR_PATH)
 
 
 try:
@@ -181,11 +181,11 @@ async def run_nmap(req: NmapRequest):
         req.ports, 
         req.target
     ]
-    command = shlex.join(command_parts)
+    command: str = shlex.join(command_parts)
     logger.info(f"Executing nmap: {command}")
 
-    timeout = int(os.getenv('DEFAULT_TIMEOUT', 300))
-    result = execute_command(command, timeout)
+    timeout: int = int(os.getenv('DEFAULT_TIMEOUT', 300))
+    result: CommandResult = execute_command(command, timeout)
     
     return result
 
@@ -207,11 +207,11 @@ async def run_gobuster(req: GobusterRequest):
     if req.additional_args:
         command_parts.extend(shlex.split(req.additional_args))
 
-    command = shlex.join(command_parts)
+    command: str = shlex.join(command_parts)
     logger.info(f"Executing gobuster: {command}")
 
-    timeout = int(os.getenv('DEFAULT_TIMEOUT', 600))
-    result = execute_command(command, timeout)
+    timeout: int = int(os.getenv('DEFAULT_TIMEOUT', 600))
+    result: CommandResult = execute_command(command, timeout)
 
     return result
 
@@ -229,7 +229,7 @@ async def health_check():
                 logger.warning(f"Error checking {tool}: {e}")
                 tools_status[tool] = False
 
-        all_available = all(tools_status.values())
+        all_available: bool = all(tools_status.values())
 
         return HealthStatus(
             status="healthy",
