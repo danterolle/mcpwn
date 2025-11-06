@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"log/slog"
 	"mcpwn/internal/client"
+	"mcpwn/internal/models"
 	"net/http"
 	"time"
 )
 
-func createToolProxyHandler(Client *client.Client, apiEndpoint string) http.HandlerFunc {
+func createToolProxyHandler[T any](Client *client.Client, apiEndpoint string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var params map[string]interface{}
+		var params T
 		if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
@@ -54,9 +55,9 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/tools/nmap", createToolProxyHandler(Client, "api/tools/nmap"))
-	mux.HandleFunc("/tools/gobuster", createToolProxyHandler(Client, "api/tools/gobuster"))
-	mux.HandleFunc("/tools/command", createToolProxyHandler(Client, "api/command"))
+	mux.HandleFunc("/tools/nmap", createToolProxyHandler[models.NmapRequest](Client, "api/tools/nmap"))
+	mux.HandleFunc("/tools/gobuster", createToolProxyHandler[models.GobusterRequest](Client, "api/tools/gobuster"))
+	mux.HandleFunc("/tools/command", createToolProxyHandler[models.GenericCommandRequest](Client, "api/command"))
 
 	slog.Info("Starting MCP server on", "port", *mcpPort)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", *mcpPort), mux); err != nil {
