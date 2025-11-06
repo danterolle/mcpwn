@@ -35,6 +35,12 @@ func createToolProxyHandler[T any](Client *client.Client, apiEndpoint string) ht
 
 		*/
 
+		// ----------------------------------------------------------------------------
+		// L'impostazione di sopra funziona ugualmente,
+		// ma cosa succede se Client.Post() impiega 2 minuti per rispondere
+		// e il client che ha fatto la richiesta chiude la connessione dopo 10 secondi?
+		// ----------------------------------------------------------------------------
+
 		resultChan := make(chan proxyResult)
 
 		ctx := r.Context()
