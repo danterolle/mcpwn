@@ -77,6 +77,8 @@ func createToolProxyHandler[T any](Client *client.Client, apiEndpoint string) ht
 	}
 }
 
+// Vogliamo vedere il numero di cicli e altri dati sul GC?
+// GODEBUG=gctrace=1 go run mcp-server/main.go --server="http://localhost:5000" --port=8000
 func main() {
 	serverURL := flag.String("server", "http://localhost:5000", "API server URL")
 	timeoutReq := flag.Int("timeout", 300, "Request timeout in seconds")
