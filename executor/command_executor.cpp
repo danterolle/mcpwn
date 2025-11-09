@@ -9,9 +9,11 @@
 
 namespace mcpwn {
 
+static constexpr size_t kDefaultMaxOutputSize{10 * 1024 * 1024}; // 10MB default
+
 CommandExecutor::CommandExecutor(const int timeout_seconds)
     : timeout_seconds_(timeout_seconds)
-    , max_output_size_(10 * 1024 * 1024) // 10MB default
+    , max_output_size_(kDefaultMaxOutputSize)
 {}
 
 CommandExecutor::~CommandExecutor() = default;
