@@ -222,8 +222,8 @@ extern "C" {
     CCommandResult* execute_command(const char* command, int timeout_seconds) {
         mcpwn::CommandExecutor executor(timeout_seconds);
         mcpwn::CommandResult cpp_result = executor.execute(command);
-        
-        auto* c_result = new CCommandResult{};
+
+        auto c_result = new CCommandResult();
         c_result->stdout_output = ::strdup(cpp_result.stdout_output.c_str());
         c_result->stderr_output = ::strdup(cpp_result.stderr_output.c_str());
         c_result->return_code = cpp_result.return_code;
