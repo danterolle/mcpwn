@@ -181,7 +181,7 @@ CommandResult CommandExecutor::execute(const std::string& command) const {
             }
         }
         
-        int status{};
+        int32_t status{};
         if (const pid_t wait_result = ::waitpid(pid, &status, WNOHANG); wait_result == pid) {
             process_running = false;
             if (WIFEXITED(status)) {
