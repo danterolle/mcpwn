@@ -4,7 +4,6 @@ import os
 import shlex
 import shutil
 import sys
-from typing import List
 
 from fastapi import APIRouter, HTTPException, status
 from models import *
@@ -26,8 +25,8 @@ def get_default_executor_path():
         logger.warning(f"Platform '{sys.platform}' not supported")
         return "non_existent_library_path" # Non esiste, ma meglio di ritornare una stringa vuota
 
-DEFAULT_EXECUTOR_PATH = get_default_executor_path()
-EXECUTOR_LIB_PATH = os.getenv('EXECUTOR_LIB_PATH', DEFAULT_EXECUTOR_PATH)
+DEFAULT_EXECUTOR_PATH: str = get_default_executor_path()
+EXECUTOR_LIB_PATH: str = os.getenv('EXECUTOR_LIB_PATH', DEFAULT_EXECUTOR_PATH)
 
 
 try:
@@ -68,7 +67,7 @@ def execute_command_cpp(command: str, timeout: int = 180) -> CommandResult:
     
     logger.info(f"Executing command: {command[:100]}...")
     
-    c_result_ptr = executor_lib.execute_command(
+    c_result_ptr: CommandResult = executor_lib.execute_command(
         command.encode('utf-8'),
         timeout
     )
@@ -80,7 +79,7 @@ def execute_command_cpp(command: str, timeout: int = 180) -> CommandResult:
         )
     
     try:
-        c_result = c_result_ptr.contents
+        c_result: CommandResult = c_result_ptr.contents
         
         result = CommandResult(
             stdout=c_result.stdout_output.decode('utf-8', errors='replace') if c_result.stdout_output else "",
@@ -173,7 +172,7 @@ async def run_nmap(req: NmapRequest):
             detail="nmap is not installed or not in $PATH"
         )
 
-    command_parts: List[str] = [
+    command_parts: list[str] = [
         "nmap", 
         *req.scan_type.split(), 
         *req.additional_args.split(), 
@@ -181,11 +180,11 @@ async def run_nmap(req: NmapRequest):
         req.ports, 
         req.target
     ]
-    command = shlex.join(command_parts)
+    command: str = shlex.join(command_parts)
     logger.info(f"Executing nmap: {command}")
 
-    timeout = int(os.getenv('DEFAULT_TIMEOUT', 300))
-    result = execute_command(command, timeout)
+    timeout: int = int(os.getenv('DEFAULT_TIMEOUT', 300))
+    result: CommandResult = execute_command(command, timeout)
     
     return result
 
@@ -198,7 +197,7 @@ async def run_gobuster(req: GobusterRequest):
             detail="gobuster is not installed or not in $PATH"
         )
 
-    command_parts: List[str] = [
+    command_parts: list[str] = [
         "gobuster",
         req.mode,
         "-u", req.url,
@@ -207,11 +206,11 @@ async def run_gobuster(req: GobusterRequest):
     if req.additional_args:
         command_parts.extend(shlex.split(req.additional_args))
 
-    command = shlex.join(command_parts)
+    command: str = shlex.join(command_parts)
     logger.info(f"Executing gobuster: {command}")
 
-    timeout = int(os.getenv('DEFAULT_TIMEOUT', 600))
-    result = execute_command(command, timeout)
+    timeout: int = int(os.getenv('DEFAULT_TIMEOUT', 600))
+    result: CommandResult = execute_command(command, timeout)
 
     return result
 
@@ -219,8 +218,8 @@ async def run_gobuster(req: GobusterRequest):
 @router.get("/health", response_model=HealthStatus)
 async def health_check():
     try:
-        main_tools: List[str] = ["nmap", "gobuster", "nikto"]
-        tools_status: Dict[str, bool] = {}
+        main_tools: list[str] = ["nmap", "gobuster", "nikto"]
+        tools_status: dict[str, bool] = {}
 
         for tool in main_tools:
             try:
@@ -229,7 +228,7 @@ async def health_check():
                 logger.warning(f"Error checking {tool}: {e}")
                 tools_status[tool] = False
 
-        all_available = all(tools_status.values())
+        all_available: bool = all(tools_status.values())
 
         return HealthStatus(
             status="healthy",

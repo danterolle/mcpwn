@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -11,6 +12,11 @@ import (
 	"time"
 )
 
+type proxyResult struct {
+	result models.CommandResult
+	err    error
+}
+
 func createToolProxyHandler[T any](Client *client.Client, apiEndpoint string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var params T
@@ -19,20 +25,60 @@ func createToolProxyHandler[T any](Client *client.Client, apiEndpoint string) ht
 			return
 		}
 
+		/* Versione senza Goroutine, probabilmente migliore per questo use-case.
+
 		result, err := Client.Post(apiEndpoint, params)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(result); err != nil {
-			slog.Error("Error encoding JSON response", "error", err)
+		*/
+
+		// ----------------------------------------------------------------------------
+		// L'impostazione di sopra funziona ugualmente,
+		// ma cosa succede se Client.Post() impiega 2 minuti per rispondere
+		// e il client che ha fatto la richiesta chiude la connessione dopo 10 secondi?
+		// ----------------------------------------------------------------------------
+
+		// Bufferizziamo di 1 elemento, appena invia il risultato termina la goroutine
+		resultChan := make(chan proxyResult, 1)
+
+		ctx := r.Context()
+
+		go func() {
+			result, err := Client.Post(ctx, apiEndpoint, params)
+
+			select {
+			case resultChan <- proxyResult{result: result, err: err}:
+			case <-ctx.Done():
+				slog.Warn("Request cancelled, dropping API result", "endpoint", apiEndpoint)
+				return
+			}
+		}()
+
+		select {
+		case res := <-resultChan:
+			if res.err != nil {
+				http.Error(w, res.err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(res.result); err != nil {
+				slog.Error("Error encoding JSON response", "error", err)
+			}
+
+		case <-ctx.Done():
+			slog.Warn("Request timed out or was cancelled by the client", "error", ctx.Err())
+			http.Error(w, "Request timed out or was cancelled", http.StatusGatewayTimeout)
 			return
 		}
 	}
 }
 
+// Vogliamo vedere il numero di cicli e altri dati sul GC?
+// GODEBUG=gctrace=1 go run mcp-server/main.go --server="http://localhost:5000" --port=8000
 func main() {
 	serverURL := flag.String("server", "http://localhost:5000", "API server URL")
 	timeoutReq := flag.Int("timeout", 300, "Request timeout in seconds")
@@ -42,7 +88,10 @@ func main() {
 	timeout := time.Duration(*timeoutReq) * time.Second
 	Client := client.New(*serverURL, timeout)
 
-	health, err := Client.CheckHealth()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	health, err := Client.CheckHealth(ctx)
 	if err != nil {
 		slog.Error("Unable to connect to the API", "server", *serverURL, "err", err)
 		slog.Info("Please check the server URL or build api-server first and try again.")

@@ -49,13 +49,13 @@ go-mcp:
 	@$(GO) build -o $(BIN_DIR)/mcp-server $(GO_DIR)
 	@echo "Go MCP server built successfully"
 
-run-api: cpp-executor python-deps
+run-api:
 	@echo "Starting Python API server..."
 	@cd $(PYTHON_DIR) && \
 		EXECUTOR_LIB_PATH=../$(LIB_DIR)/lib/libcommand_executor.dylib \
 		.venv/bin/python3.11 main.py --port 5000 $(API_ARGS)
 
-run-mcp: go-mcp
+run-mcp:
 	@echo "Starting Go MCP server..."
 	@$(BIN_DIR)/mcp-server --port 8000 --server "http://localhost:5000" $(MCP_ARGS)
 

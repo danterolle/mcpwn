@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     logger.info("Starting API Server...")
-    lib_path = os.getenv('EXECUTOR_LIB_PATH', 'libcommand_executor.dylib')
+    lib_path: str = os.getenv('EXECUTOR_LIB_PATH', 'libcommand_executor.dylib')
     logger.info(f"Attempting to load command executor library from: {lib_path}")
     yield
     logger.info("Shutting down API Server...")
