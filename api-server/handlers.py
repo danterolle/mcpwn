@@ -4,6 +4,7 @@ import os
 import shlex
 import shutil
 import sys
+import asyncio
 
 from fastapi import APIRouter, HTTPException, status
 from models import *
@@ -159,7 +160,7 @@ async def generic_command(req: GenericCommandRequest):
     logger.warning(f"Generic command execution requested: {req.command[:50]}...")
     
     timeout: int = int(os.getenv('DEFAULT_TIMEOUT', 180))
-    result: CommandResult = execute_command(req.command, timeout)
+    result: CommandResult = await asyncio.to_thread(execute_command, req.command, timeout)
     
     return result
 
